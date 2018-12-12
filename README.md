@@ -4,4 +4,4 @@ which Python sometimes automatically populates (and uses) for optimisation purpo
 file is infected.
 
 ## Compatibility
-This has been tested to work with python 3.4 and 3.5, segfaults after running on 3.6, and does not work at all under 3.7
+This has been tested to work with python 3.4, 3.5, 3.6, and doesn't yet work on 3.7

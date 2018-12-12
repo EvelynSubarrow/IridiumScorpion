@@ -85,8 +85,8 @@ def main_wrapper():
                     # LOAD_CONST name (02) 64 xx
                     # MAKE_FUNCTION 0 (04) 84 00
                     # CALL_FUNCTION 0 (06) 83 00
-                    # POP_TOP         (08) 01
-                    new_bytecode = struct.pack("=BBBBBBBBB", 0x64, len(new_constants)-2, 0x64, len(new_constants)-1, 0x84, 0, 0x83, 0, 1)
+                    # POP_TOP         (08) 01 00
+                    new_bytecode = struct.pack("=BBBBBBBBB", 0x64, len(new_constants)-2, 0x64, len(new_constants)-1, 0x84, 0, 0x83, 0, 1, 0)
                 else:
                     # LOAD_CONST fn   (00) 64 xxxx
                     # LOAD_CONST name (03) 64 xxxx
