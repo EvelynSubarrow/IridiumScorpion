@@ -18,7 +18,7 @@ def main_wrapper():
     py_version = "".join([str(a) for a in sys.version_info[:2]])
 
     # I'm picky about hex representation, what can I say? Magic is truncated because the last two bytes are always \r\n.
-    # Note that the magic is meant to be interpreted as a BE uint, but there's not much point here
+    # Note that the magic is meant to be interpreted as a LE uint, but there's not much point here
     magic_hex = lambda x: ''.join(["%02X" % a for a in x])[:4]
 
     # Find our file, compile it if it's not already compiled
