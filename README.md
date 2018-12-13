@@ -1,5 +1,5 @@
 # IridiumScorpion
-This is a proof of concept compiled python virus, which infects compatible pyc files in nearby `__pycache__` directories,
+This is a proof of concept cpython virus, which infects compatible pyc files in nearby `__pycache__` directories,
 which Python sometimes automatically populates (and uses) for optimisation purposes. Unlike BismuthScorpion, every
 file is infected.
 
@@ -9,3 +9,9 @@ tested this.
 
 ## Licence
 [Creative Commons BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) for now.
+
+## References
+* [PEP 3147](https://www.python.org/dev/peps/pep-3147/) - 3x .pyc format and caching mechanics
+* [PEP 552](https://www.python.org/dev/peps/pep-0552/) - 3.7+ .pyc format
+* [Reading pyc file (Python 3.5.2) - amedama](https://qiita.com/amedama/items/698a7c4dbdd34b03b427) - 3.3..3.6 .pyc format
+* [Pytype magic.py](https://github.com/google/pytype/blob/master/pytype/pyc/magic.py) - Magic number list
