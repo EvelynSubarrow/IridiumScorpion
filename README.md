@@ -1,7 +1,8 @@
 # IridiumScorpion
 This is a proof of concept cpython virus, which infects compatible pyc files in nearby `__pycache__` directories,
-which Python sometimes automatically populates (and uses) for optimisation purposes. Unlike BismuthScorpion, every
-file is infected.
+which Python sometimes automatically populates (and uses) for optimisation purposes.
+Unlike [BismuthScorpion](https://github.com/EvelynSubarrow/BismuthScorpion), every file is infected, but unlike
+BismuthScorpion, this will only work against a target of the same version, and there is no obfuscation.
 
 ## Compatibility
 This has been tested to work with python 3.4, 3.5, 3.6, and 3.7. It should be compatible with 3.2, but I haven't
